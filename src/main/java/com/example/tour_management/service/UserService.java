@@ -44,6 +44,12 @@ public class UserService {
         return mapToResponse(user);
     }
 
+    public List<UserResponse> searchUsers(String name, String role){
+       List<User> users = userRepository.searchUsers(name, role);
+
+       return users.stream().map(this::mapToResponse).toList();
+    }
+
     public UserResponse create(UserRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -60,7 +66,7 @@ public class UserService {
         user.setDateOfBirth(request.getDateOfBirth());
         user.setPhone(request.getPhone());
         user.setAddress(request.getAddress());
-        user.setRole(role);
+        user.setRole_id(role);
 
         return mapToResponse(userRepository.save(user));
     }
@@ -70,7 +76,7 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        String oldRole = user.getRole().getRoleName();
+        String oldRole = user.getRole_id().getRoleName();
 
         user.setUserName(request.getUserName());
         user.setEmail(request.getEmail());
@@ -85,7 +91,7 @@ public class UserService {
         Role role = roleRepository.findByRoleName(request.getRoleName())
                 .orElseThrow(() -> new RuntimeException("Role not found"));
 
-        user.setRole(role);
+        user.setRole_id(role);
 
         userRepository.save(user);
 
@@ -112,6 +118,7 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
+
     private UserResponse mapToResponse(User user) {
         UserResponse res = new UserResponse();
         res.setId(user.getId());
@@ -120,7 +127,7 @@ public class UserService {
         res.setDateOfBirth(user.getDateOfBirth());
         res.setPhone(user.getPhone());
         res.setAddress(user.getAddress());
-        res.setRoleName(user.getRole().getRoleName());
+        res.setRoleName(user.getRole_id().getRoleName());
         return res;
     }
 }

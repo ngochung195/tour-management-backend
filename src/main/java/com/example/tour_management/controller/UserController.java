@@ -28,6 +28,14 @@ public class UserController {
         return ResponseEntity.ok(userService.getById(id));
     }
 
+    @GetMapping("/search-user")
+    public ResponseEntity<List<UserResponse>> searchUser(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String role
+    ){
+        return ResponseEntity.ok(userService.searchUsers(name, role));
+    }
+
     @PostMapping
     public ResponseEntity<UserResponse> create(
             @Valid @RequestBody UserRequest req) {

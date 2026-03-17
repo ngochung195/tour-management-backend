@@ -29,10 +29,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                         ));
 
         System.out.println("LOGIN = " + user.getEmail());
-        System.out.println("ROLE = " + user.getRole().getRoleName());
+        System.out.println("ROLE = " + user.getRole_id().getRoleName());
 
         GrantedAuthority authority =
-                new SimpleGrantedAuthority(user.getRole().getRoleName());
+                new SimpleGrantedAuthority(user.getRole_id().getRoleName());
 
 
         return new org.springframework.security.core.userdetails.User(

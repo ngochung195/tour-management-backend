@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -31,6 +32,15 @@ public class TourController {
     }
 
     // manager, admin
+    @GetMapping("/search-tour")
+    public ResponseEntity<List<TourResponse>> searchTour(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false)LocalDate startDate,
+            @RequestParam(required = false)LocalDate endDate
+            ){
+        return ResponseEntity.ok(tourService.searchTour(keyword, startDate, endDate));
+    }
+
     @PostMapping
     public ResponseEntity<TourResponse> create(
             @Valid @RequestBody TourRequest req) {
