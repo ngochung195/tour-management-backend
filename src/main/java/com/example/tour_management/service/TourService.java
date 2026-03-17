@@ -15,6 +15,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -79,6 +80,14 @@ public class TourService {
         redisTemplate.opsForValue().set(key, response, 10, TimeUnit.MINUTES);
 
         return response;
+    }
+
+    public List<TourResponse> searchTour(String keyword, LocalDate startDate, LocalDate endDate){
+
+
+        List<Tour> tours = tourRepository.searchTour(keyword, startDate, endDate);
+
+        return tours.stream().map(this::mapToResponse).toList();
     }
 
     public TourResponse create(TourRequest request) {
