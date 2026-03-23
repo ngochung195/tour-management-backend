@@ -12,10 +12,12 @@ import com.example.tour_management.repository.TourRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -83,10 +85,22 @@ public class TourService {
 
     public List<TourResponse> searchTour(String keyword, LocalDate startDate, LocalDate endDate){
 
-
         List<Tour> tours = tourRepository.searchTour(keyword, startDate, endDate);
 
         return tours.stream().map(this::mapToResponse).toList();
+    }
+
+    @Async("taskExecutor")
+    public CompletableFuture<List<TourResponse>> searchTourPublicAsync(
+            String keyword,
+            LocalDate startDate,
+            LocalDate endDate,
+            Long categoryId){
+        List<Tour> tours = tourRepository.searchPublic(keyword, startDate, endDate, categoryId);
+
+        List<TourResponse> response = mapToResponseList(tours);
+
+        return CompletableFuture.completedFuture(response);
     }
 
     public TourResponse create(TourRequest request) {
@@ -176,5 +190,9 @@ public class TourService {
         }
 
         return res;
+    }
+
+    private List<TourResponse> mapToResponseList(List<Tour> tours){
+        return tours.stream().map(this::mapToResponse).toList();
     }
 }
