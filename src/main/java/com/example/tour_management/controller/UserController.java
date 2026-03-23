@@ -18,6 +18,16 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getProfile(){
+        return ResponseEntity.ok(userService.getCurrentUser());
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateProfile(@Valid @RequestBody UserRequest req ){
+        return ResponseEntity.ok(userService.updateCurrentUser(req));
+    }
+
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAll() {
         return ResponseEntity.ok(userService.getAll());

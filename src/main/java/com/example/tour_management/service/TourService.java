@@ -11,7 +11,6 @@ import com.example.tour_management.repository.TourRepository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -127,8 +126,13 @@ public class TourService {
         tour.setEndDate(request.getEndDate());
         tour.setCategory(category);
 
+        Tour savedTour = tourRepository.save(tour);
+
+        TourResponse response = mapToResponse(savedTour);
+
+        redisTemplate.opsForValue().set("tour:" + id, response, 10, TimeUnit.MINUTES);
+
         redisTemplate.delete("tours");
-        redisTemplate.delete("tour:" + id);
 
         return mapToResponse(tourRepository.save(tour));
     }
@@ -150,6 +154,7 @@ public class TourService {
         res.setId(tour.getId());
         res.setTourName(tour.getTourName());
         res.setQuantity(tour.getQuantity());
+        res.setDescription(tour.getDescription());
         res.setStartDate(tour.getStartDate());
         res.setEndDate(tour.getEndDate());
         res.setPrice(tour.getPrice());
