@@ -34,7 +34,7 @@ public class User {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
-    private Role role_id;
+    private Role role;
 
     public User() {}
 
@@ -95,11 +95,11 @@ public class User {
         this.address = address;
     }
 
-    public Role getRole_id() {
-        return role_id;
+    public Role getRole() {
+        return role;
     }
 
-    public void setRole_id(Role role_id) {
-        this.role_id = role_id;
+    public void setRole(Role role) {
+        this.role = role;
     }
 }

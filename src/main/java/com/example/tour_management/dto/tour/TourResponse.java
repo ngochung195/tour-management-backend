@@ -14,6 +14,7 @@ public class TourResponse implements Serializable {
     private LocalDate endDate;
     private String img;
     private BigDecimal price;
+    private String description;
 
     private Integer categoryId;
     private String categoryName;
@@ -72,6 +73,14 @@ public class TourResponse implements Serializable {
 
     public void setImg(String img) {
         this.img = img;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public Integer getCategoryId() {
