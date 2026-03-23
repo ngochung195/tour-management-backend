@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/tours")
@@ -31,10 +32,21 @@ public class TourController {
         return ResponseEntity.ok(tourService.getById(id));
     }
 
+    @GetMapping("/search")
+    public CompletableFuture<ResponseEntity<List<TourResponse>>> searchPublic(
+            @RequestParam(required = false)String keyword,
+            @RequestParam(required = false)LocalDate startDate,
+            @RequestParam(required = false)LocalDate endDate,
+            @RequestParam(required = false)Long categoryId
+            ){
+        return tourService.searchTourPublicAsync(keyword, startDate, endDate, categoryId)
+                .thenApply(result -> ResponseEntity.ok(result));
+    }
+
     // manager, admin
     @GetMapping("/search-tour")
     public ResponseEntity<List<TourResponse>> searchTour(
-            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false)String keyword,
             @RequestParam(required = false)LocalDate startDate,
             @RequestParam(required = false)LocalDate endDate
             ){
