@@ -55,7 +55,7 @@ public class TourController {
 
     @PostMapping
     public ResponseEntity<TourResponse> create(
-            @Valid @RequestBody TourRequest req) {
+            @ModelAttribute TourRequest req) {
 
         return ResponseEntity.ok(tourService.create(req));
     }
@@ -63,7 +63,7 @@ public class TourController {
     @PutMapping("/{id}")
     public ResponseEntity<TourResponse> update(
             @PathVariable Integer id,
-            @Valid @RequestBody TourRequest req) {
+            @ModelAttribute TourRequest req) {
 
         return ResponseEntity.ok(tourService.update(id, req));
     }
