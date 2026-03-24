@@ -15,11 +15,15 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Service
 public class TourService {
@@ -108,15 +112,41 @@ public class TourService {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new NotFoundException("Category not found"));
 
+        if (request.getStartDate() != null && request.getEndDate() != null){
+            if (request.getEndDate().isBefore(request.getStartDate())){
+                throw new RuntimeException("Ngày kết thúc phải sau ngày bắt đầu");
+            }
+        }
+
         Tour tour = new Tour();
         tour.setTourName(request.getTourName());
         tour.setPrice(request.getPrice());
         tour.setQuantity(request.getQuantity());
         tour.setDescription(request.getDescription());
-        tour.setImg(request.getImg());
         tour.setStartDate(request.getStartDate());
         tour.setEndDate(request.getEndDate());
         tour.setCategory(category);
+
+        if (request.getImg() != null && !request.getImg().isEmpty()){
+            try{
+                String uploadDir = System.getProperty("user.dir") + "/uploads";
+                Path uploadPath = Paths.get(uploadDir);;
+                if (!Files.exists(uploadPath)){
+                    Files.createDirectories(uploadPath);
+                }
+
+                String fileName = System.currentTimeMillis() + "_" + request.getImg().getOriginalFilename();
+                Path filePath = uploadPath.resolve(fileName);
+                Files.copy(request.getImg().getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+                tour.setImg("/uploads/" + fileName);
+
+                System.out.println("SAVE TO: " + filePath.toAbsolutePath());
+
+            } catch (Exception e) {
+                throw new RuntimeException("Could not store file: " + e.getMessage());
+            }
+        }
 
         redisTemplate.delete("tours");
 
@@ -131,14 +161,45 @@ public class TourService {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new NotFoundException("Category not found"));
 
+        if (request.getStartDate() != null && request.getEndDate() != null){
+            if (request.getEndDate().isBefore(request.getStartDate())){
+                throw new RuntimeException("Ngày kết thúc phải sau ngày bắt đầu");
+            }
+        }
+
         tour.setTourName(request.getTourName());
         tour.setPrice(request.getPrice());
         tour.setQuantity(request.getQuantity());
         tour.setDescription(request.getDescription());
-        tour.setImg(request.getImg());
         tour.setStartDate(request.getStartDate());
         tour.setEndDate(request.getEndDate());
         tour.setCategory(category);
+
+        if (request.getImg() != null && !request.getImg().isEmpty()) {
+            try {
+                String uploadDir = "uploads/";
+                Path uploadPath = Paths.get(uploadDir);
+
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+
+                String filename = System.currentTimeMillis() + "_" + request.getImg().getOriginalFilename();
+                Path filePath = uploadPath.resolve(filename);
+
+                Files.copy(request.getImg().getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+                if (tour.getImg() != null) {
+                    Path oldPath = Paths.get("uploads/" + tour.getImg().replace("/uploads/", ""));
+                    Files.deleteIfExists(oldPath);
+                }
+
+                tour.setImg("/uploads/" + filename);
+
+            } catch (Exception e) {
+                throw new RuntimeException("Upload file failed: " + e.getMessage());
+            }
+        }
 
         Tour savedTour = tourRepository.save(tour);
 

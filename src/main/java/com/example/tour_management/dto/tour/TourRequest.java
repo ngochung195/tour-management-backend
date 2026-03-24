@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,8 +35,7 @@ public class TourRequest {
         @NotNull(message = "End date is required")
         private LocalDate endDate;
 
-        private String img;
-
+        private MultipartFile img;
 
         public String getTourName() {
                 return tourName;
@@ -93,11 +93,11 @@ public class TourRequest {
                 this.endDate = endDate;
         }
 
-        public String getImg() {
+        public MultipartFile getImg() {
                 return img;
         }
 
-        public void setImg(String img) {
+        public void setImg(MultipartFile img) {
                 this.img = img;
         }
 }
