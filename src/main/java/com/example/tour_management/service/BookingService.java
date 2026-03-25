@@ -1,5 +1,6 @@
 package com.example.tour_management.service;
 
+import com.example.tour_management.dto.EmailMessage;
 import com.example.tour_management.dto.booking.BookingRequest;
 import com.example.tour_management.dto.booking.BookingResponse;
 import com.example.tour_management.entity.Booking;
@@ -11,6 +12,7 @@ import com.example.tour_management.repository.BookingRepository;
 import com.example.tour_management.repository.TourRepository;
 import com.example.tour_management.repository.UserRepository;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,8 @@ public class BookingService {
     private RedisTemplate<String, Object> redisTemplate;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     // user
     public List<BookingResponse> getAll() {
@@ -96,14 +100,21 @@ public class BookingService {
         Booking saved = bookingRepository.save(booking);
         saved.setBookingCode(String.format("BK-%03d", saved.getId()));
 
-        emailService.sendBookingConfirm(
-                user.getEmail(),
-                user.getUserName(),
-                tour.getTourName(),
-                tour.getStartDate(),
-                tour.getEndDate(),
-                saved.getQuantity()
+        EmailMessage msg = new EmailMessage();
+        msg.setTo(user.getEmail());
+        msg.setUserName(user.getUserName());
+        msg.setTourName(tour.getTourName());
+        msg.setStartDate(tour.getStartDate());
+        msg.setEndDate(tour.getEndDate());
+        msg.setQuantity(tour.getQuantity());
+
+        rabbitTemplate.convertAndSend(
+                "emailExchange",
+                "email.routing",
+                msg
         );
+
+        System.out.println("Sent to RabbitMQ");
 
         return toResponse(saved);
     }
