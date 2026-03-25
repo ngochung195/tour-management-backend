@@ -34,6 +34,8 @@ public class BookingService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+    @Autowired
+    private EmailService emailService;
 
     // user
     public List<BookingResponse> getAll() {
@@ -93,6 +95,15 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
         saved.setBookingCode(String.format("BK-%03d", saved.getId()));
+
+        emailService.sendBookingConfirm(
+                user.getEmail(),
+                user.getUserName(),
+                tour.getTourName(),
+                tour.getStartDate(),
+                tour.getEndDate(),
+                saved.getQuantity()
+        );
 
         return toResponse(saved);
     }
