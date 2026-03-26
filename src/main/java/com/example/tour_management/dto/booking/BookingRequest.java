@@ -9,7 +9,7 @@ public class BookingRequest {
     private Integer tourId;
 
     @NotNull
-    @Min(1)
+    @Min(value = 1, message = "Số chỗ phải lớn hơn 0")
     private Integer quantity;
 
     public Integer getTourId() {

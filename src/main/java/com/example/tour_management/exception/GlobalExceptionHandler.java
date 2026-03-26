@@ -36,6 +36,7 @@ public class GlobalExceptionHandler {
                 .body(Map.of(
                         "timestamp", LocalDateTime.now(),
                         "status", 400,
+                        "message", "Dữ liệu không hợp lệ",
                         "errors", errors
                 ));
     }
