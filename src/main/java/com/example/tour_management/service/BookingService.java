@@ -106,7 +106,7 @@ public class BookingService {
         msg.setTourName(tour.getTourName());
         msg.setStartDate(tour.getStartDate());
         msg.setEndDate(tour.getEndDate());
-        msg.setQuantity(tour.getQuantity());
+        msg.setQuantity(booking.getQuantity());
 
         rabbitTemplate.convertAndSend(
                 "emailExchange",
