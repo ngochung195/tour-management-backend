@@ -1,6 +1,6 @@
 package com.example.tour_management.service;
 
-import com.example.tour_management.dto.EmailMessage;
+    import com.example.tour_management.dto.EmailMessage;
 import com.example.tour_management.dto.booking.BookingRequest;
 import com.example.tour_management.dto.booking.BookingResponse;
 import com.example.tour_management.entity.Booking;
@@ -15,11 +15,12 @@ import com.example.tour_management.repository.UserRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -80,8 +81,6 @@ public class BookingService {
             throw new RuntimeException("Not enough tour quantity");
         }
 
-        tour.setQuantity(tour.getQuantity() - quantity);
-
         redisTemplate.delete("tours");
         redisTemplate.delete("tour:" + tour.getId());
 
@@ -99,10 +98,54 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
         saved.setBookingCode(String.format("BK-%03d", saved.getId()));
+        bookingRepository.save(saved);
+
+        return toResponse(saved);
+    }
+
+
+    @Transactional
+    public void handlePaymentCallback(Integer bookingId, String status) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NotFoundException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            return;
+        }
+
+        if ("success".equals(status)) {
+
+            booking.setStatus(BookingStatus.PAID);
+            bookingRepository.save(booking);
+
+            handleAfterPayment(booking);
+
+        } else {
+            booking.setStatus(BookingStatus.CANCELLED);
+            bookingRepository.save(booking);
+        }
+    }
+
+    @Transactional
+    public void handleAfterPayment(Booking booking) {
+
+        Tour tour = booking.getTour();
+
+        if (tour.getQuantity() < booking.getQuantity()) {
+            throw new RuntimeException("Tour is full");
+        }
+
+        tour.setQuantity(
+                tour.getQuantity() - booking.getQuantity()
+        );
+
+        redisTemplate.delete("tours");
+        redisTemplate.delete("tour:" + tour.getId());
 
         EmailMessage msg = new EmailMessage();
-        msg.setTo(user.getEmail());
-        msg.setUserName(user.getUserName());
+        msg.setTo(booking.getUser().getEmail());
+        msg.setUserName(booking.getUser().getUserName());
         msg.setTourName(tour.getTourName());
         msg.setStartDate(tour.getStartDate());
         msg.setEndDate(tour.getEndDate());
@@ -116,25 +159,42 @@ public class BookingService {
 
         System.out.println("Sent to RabbitMQ");
 
-        return toResponse(saved);
     }
+    @Scheduled(fixedRate = 300000)
+    public void autoCancelBooking() {
+
+        LocalDateTime time = LocalDateTime.now().minusMinutes(15);
+
+        List<Booking> expired = bookingRepository.findExpired(time);
+
+        for (Booking b : expired) {
+            b.setStatus(BookingStatus.CANCELLED);
+        }
+        System.out.println("Auto cancelled: " + expired.size());
+
+        bookingRepository.saveAll(expired);
+    }
+
 
     @Transactional
     public void cancel(Integer id) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Booking not found"));
 
+        if (booking.getStatus() == BookingStatus.PAID
+                || booking.getStatus() == BookingStatus.APPROVED) {
+
+            Tour tour = booking.getTour();
+
+            tour.setQuantity(
+                    tour.getQuantity() + booking.getQuantity()
+            );
+
+            redisTemplate.delete("tours");
+            redisTemplate.delete("tour:" + tour.getId());
+        }
+
         booking.setStatus(BookingStatus.CANCELLED);
-
-        Tour tour = booking.getTour();
-
-        tour.setQuantity(
-                tour.getQuantity() + booking.getQuantity()
-        );
-
-        redisTemplate.delete("tours");
-        redisTemplate.delete("tour:" + tour.getId());
-
         bookingRepository.save(booking);
     }
 
@@ -154,7 +214,8 @@ public class BookingService {
             throw new RuntimeException("Invalid booking status: " + status);
         }
 
-        if (booking.getStatus() == BookingStatus.PENDING && newStatus == BookingStatus.REJECTED) {
+        if ((booking.getStatus() == BookingStatus.PAID || booking.getStatus() == BookingStatus.APPROVED)
+                        && (newStatus == BookingStatus.REJECTED || newStatus == BookingStatus.CANCELLED)){
 
             Tour tour = booking.getTour();
 

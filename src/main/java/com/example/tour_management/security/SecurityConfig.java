@@ -60,6 +60,7 @@ public class SecurityConfig {
                         // public
                         .requestMatchers("/tours/**", "/images/**", "/uploads/**", "/css/**", "/js/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/payment/vnpay_return").permitAll()
 
                         // tours
                         .requestMatchers(HttpMethod.GET, "/api/tours/**").permitAll()
