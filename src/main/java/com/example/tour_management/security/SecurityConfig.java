@@ -83,7 +83,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
 
                         // roles
-                        .requestMatchers(HttpMethod.GET, "/api/roles//**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/roles/**").permitAll()
 
 
                         // users
