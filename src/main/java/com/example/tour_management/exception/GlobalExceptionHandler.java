@@ -4,9 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -18,6 +18,7 @@ public class GlobalExceptionHandler {
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    // VALIDATION
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
 
@@ -41,7 +42,22 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // LOGIN SAI PASSWORD
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<?> handleBadCredentials(BadCredentialsException ex) {
 
+        log.error("Bad credentials", ex);
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of(
+                        "timestamp", LocalDateTime.now(),
+                        "status", 401,
+                        "message", "Sai email hoặc mật khẩu"
+                ));
+    }
+
+    // BAD REQUEST
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<?> handleBadRequest(BadRequestException ex) {
 
@@ -52,11 +68,11 @@ public class GlobalExceptionHandler {
                 .body(Map.of(
                         "timestamp", LocalDateTime.now(),
                         "status", 400,
-                        "error", ex.getMessage()
+                        "message", ex.getMessage()
                 ));
     }
 
-
+    // NOT FOUND
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<?> handleNotFound(NotFoundException ex) {
 
@@ -67,10 +83,11 @@ public class GlobalExceptionHandler {
                 .body(Map.of(
                         "timestamp", LocalDateTime.now(),
                         "status", 404,
-                        "error", ex.getMessage()
+                        "message", ex.getMessage()
                 ));
     }
 
+    // SYSTEM ERROR
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleOther(Exception ex) {
 
@@ -81,7 +98,7 @@ public class GlobalExceptionHandler {
                 .body(Map.of(
                         "timestamp", LocalDateTime.now(),
                         "status", 500,
-                        "error", "Internal server error"
+                        "message", "Internal server error"
                 ));
     }
 }
