@@ -1,4 +1,4 @@
-package com.example.tour_management.dto;
+package com.example.tour_management.dto.email;
 
 import java.time.LocalDate;
 

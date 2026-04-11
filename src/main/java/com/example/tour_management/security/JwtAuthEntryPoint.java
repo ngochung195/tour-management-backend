@@ -20,12 +20,14 @@ public class JwtAuthEntryPoint implements AuthenticationEntryPoint {
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
         response.getWriter().write("""
-            {
-              "status": 401,
-              "error": "Unauthorized",
-              "message": "Please login to access this resource"
-            }
+        {
+          "status": 401,
+          "error": "Unauthorized",
+          "message": "Vui lòng đăng nhập để truy cập tài nguyên này"
+        }
         """);
     }
 }

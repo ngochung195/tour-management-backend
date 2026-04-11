@@ -1,5 +1,6 @@
 package com.example.tour_management.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,17 +26,21 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     public SecurityConfig(
             UserDetailsServiceImpl userDetailsService,
             JwtFilter jwtFilter,
             JwtAuthEntryPoint jwtAuthEntryPoint,
-            JwtAccessDeniedHandler jwtAccessDeniedHandler
+            JwtAccessDeniedHandler jwtAccessDeniedHandler,
+            OAuth2SuccessHandler oAuth2SuccessHandler
     ) {
         this.userDetailsService = userDetailsService;
         this.jwtFilter = jwtFilter;
         this.jwtAuthEntryPoint = jwtAuthEntryPoint;
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+
     }
 
     @Bean
@@ -61,6 +66,8 @@ public class SecurityConfig {
                         .requestMatchers("/tours/**", "/images/**", "/uploads/**", "/css/**", "/js/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/payment/vnpay_return").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/**").permitAll()
+                        .requestMatchers("/api/users/forgot-password", "/api/users/reset-password").permitAll()
 
                         // tours
                         .requestMatchers(HttpMethod.GET, "/api/tours/**").permitAll()
@@ -94,6 +101,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated()
+                )
+
+                .oauth2Login(oauth -> oauth
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler((request, response, exception) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"message\": \"OAuth2 login failed\"}");
+                        })
                 )
 
                 .addFilterBefore(

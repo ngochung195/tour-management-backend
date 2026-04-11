@@ -36,4 +36,22 @@ public class RabbitConfig {
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }
+
+    @Bean
+    public Queue resetPasswordQueue() {
+        return new Queue("email.reset.queue", true);
+    }
+
+    @Bean
+    public DirectExchange emailExchange() {
+        return new DirectExchange("email.exchange");
+    }
+
+    @Bean
+    public Binding resetPasswordBinding() {
+        return BindingBuilder
+                .bind(resetPasswordQueue())
+                .to(emailExchange())
+                .with("email.reset");
+    }
 }
