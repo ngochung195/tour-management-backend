@@ -2,6 +2,7 @@ package com.example.tour_management.controller;
 
 import com.example.tour_management.dto.auth.LoginRequest;
 import com.example.tour_management.dto.auth.LoginResponse;
+import com.example.tour_management.dto.auth.RegisterRequest;
 import com.example.tour_management.entity.User;
 import com.example.tour_management.repository.UserRepository;
 import com.example.tour_management.security.JwtUtil;
@@ -44,5 +45,10 @@ public class AuthController {
        LoginResponse response = authService.login(request);
 
        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(authService.register(request));
     }
 }

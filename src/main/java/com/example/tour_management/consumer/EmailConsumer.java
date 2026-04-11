@@ -1,6 +1,7 @@
 package com.example.tour_management.consumer;
 
-import com.example.tour_management.dto.EmailMessage;
+import com.example.tour_management.dto.email.EmailMessage;
+import com.example.tour_management.dto.email.ResetPasswordEmailMessage;
 import com.example.tour_management.service.EmailService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,15 @@ public class EmailConsumer {
                 msg.getStartDate(),
                 msg.getEndDate(),
                 msg.getQuantity()
+        );
+    }
+
+    @RabbitListener(queues = "email.reset.queue")
+    public void handleResetPasswordEmail(ResetPasswordEmailMessage message) {
+
+        emailService.sendResetPasswordEmail(
+                message.getEmail(),
+                message.getLink()
         );
     }
 }

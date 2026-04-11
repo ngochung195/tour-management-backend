@@ -2,6 +2,7 @@ package com.example.tour_management.controller;
 
 import com.example.tour_management.dto.user.UserRequest;
 import com.example.tour_management.dto.user.UserResponse;
+import com.example.tour_management.service.PasswordResetTokenService;
 import com.example.tour_management.service.UserService;
 
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -17,6 +19,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private PasswordResetTokenService passwordResetTokenService;
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getProfile(){
@@ -51,6 +56,28 @@ public class UserController {
             @Valid @RequestBody UserRequest req) {
 
         return ResponseEntity.ok(userService.create(req));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
+
+        passwordResetTokenService.forgotPassword(email);
+
+        return ResponseEntity.ok(
+                Map.of("message", "Email đặt lại mật khẩu đã được gửi")
+        );
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(
+            @RequestParam String token,
+            @RequestParam String newPassword) {
+
+        passwordResetTokenService.resetPassword(token, newPassword);
+
+        return ResponseEntity.ok(
+                Map.of("message", "Đặt lại mật khẩu thành công")
+        );
     }
 
     @PutMapping("/{id}")

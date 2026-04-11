@@ -1,6 +1,6 @@
 package com.example.tour_management.service;
 
-    import com.example.tour_management.dto.EmailMessage;
+    import com.example.tour_management.dto.email.EmailMessage;
 import com.example.tour_management.dto.booking.BookingRequest;
 import com.example.tour_management.dto.booking.BookingResponse;
 import com.example.tour_management.entity.Booking;

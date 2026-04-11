@@ -86,7 +86,13 @@ public class UserService {
             throw new BadRequestException("Email already exists");
         }
 
-        Role role = roleRepository.findByRoleName("ROLE_CUSTOMER")
+        String roleName = request.getRoleName();
+
+        if (roleName == null || roleName.isBlank()) {
+            roleName = "ROLE_CUSTOMER";
+        }
+
+        Role role = roleRepository.findByRoleName(roleName)
                 .orElseThrow(() -> new RuntimeException("Role not found"));
 
         User user = new User();
