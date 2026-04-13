@@ -2,15 +2,20 @@ package com.example.tour_management.security;
 
 import com.example.tour_management.entity.User;
 import com.example.tour_management.repository.UserRepository;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.userdetails.*;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
+
 import java.util.Collections;
+
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(UserDetailsServiceImpl.class);
 
     private final UserRepository userRepository;
 
@@ -23,17 +28,24 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throws UsernameNotFoundException {
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException(
-                                "User not found with email: " + email
-                        ));
+                .orElseThrow(() -> {
+                    log.error("Không tìm thấy user với email: {}", email);
+                    return new UsernameNotFoundException(
+                            "User not found with email: " + email
+                    );
+                });
 
-        System.out.println("LOGIN = " + user.getEmail());
-        System.out.println("ROLE = " + user.getRole().getRoleName());
+        String roleName = user.getRole().getRoleName();
+
+        if (!roleName.startsWith("ROLE_")) {
+            roleName = "ROLE_" + roleName;
+        }
+
+        log.info("User đăng nhập: {}", user.getEmail());
+        log.info("Role: {}", roleName);
 
         GrantedAuthority authority =
-                new SimpleGrantedAuthority(user.getRole().getRoleName());
-
+                new SimpleGrantedAuthority(roleName);
 
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
