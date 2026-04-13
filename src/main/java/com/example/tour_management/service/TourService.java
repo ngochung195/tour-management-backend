@@ -1,32 +1,29 @@
 package com.example.tour_management.service;
 
-import com.example.tour_management.config.RedisConfig;
 import com.example.tour_management.dto.tour.TourRequest;
 import com.example.tour_management.dto.tour.TourResponse;
 import com.example.tour_management.entity.Category;
 import com.example.tour_management.entity.Tour;
+import com.example.tour_management.exception.BadRequestException;
 import com.example.tour_management.exception.NotFoundException;
 import com.example.tour_management.repository.CategoryRepository;
 import com.example.tour_management.repository.TourRepository;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class TourService {
+
+    private static final Logger log = LoggerFactory.getLogger(TourService.class);
 
     @Autowired
     private TourRepository tourRepository;
@@ -40,20 +37,23 @@ public class TourService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    private static final String IMAGE_BASE_URL = "http://localhost:8080/tours/";
+
     public List<TourResponse> getAll() {
         String key = "tours";
 
         Object cachedTours = redisTemplate.opsForValue().get(key);
 
-        if (cachedTours != null){
-            System.out.println("Get data from Redis");
+        if (cachedTours != null) {
+            log.info("Lấy danh sách tour từ Redis");
             return objectMapper.convertValue(
                     cachedTours,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, TourResponse.class)
+                    objectMapper.getTypeFactory()
+                            .constructCollectionType(List.class, TourResponse.class)
             );
         }
 
-        System.out.println("Query DB");
+        log.info("Lấy danh sách tour từ DB");
 
         List<TourResponse> tours = tourRepository.findAll()
                 .stream()
@@ -70,15 +70,15 @@ public class TourService {
 
         Object cachedTour = redisTemplate.opsForValue().get(key);
 
-        if (cachedTour != null){
-            System.out.println("Get data from Redis");
+        if (cachedTour != null) {
+            log.info("Lấy tour id={} từ Redis", id);
             return objectMapper.convertValue(cachedTour, TourResponse.class);
         }
 
-        System.out.println("Query DB");
+        log.info("Lấy tour id={} từ DB", id);
 
         Tour tour = tourRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Tour not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tour"));
 
         TourResponse response = mapToResponse(tour);
 
@@ -87,24 +87,20 @@ public class TourService {
         return response;
     }
 
-    public List<TourResponse> searchTour(String keyword, LocalDate startDate, LocalDate endDate){
+    public List<TourResponse> searchTour(String keyword, LocalDate startDate, LocalDate endDate) {
+        log.info("Tìm kiếm tour với keyword={}", keyword);
 
         List<Tour> tours = tourRepository.searchTour(keyword, startDate, endDate);
 
         return tours.stream().map(this::mapToResponse).toList();
     }
 
-
     public TourResponse create(TourRequest request) {
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new NotFoundException("Category not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục"));
 
-        if (request.getStartDate() != null && request.getEndDate() != null){
-            if (request.getEndDate().isBefore(request.getStartDate())){
-                throw new RuntimeException("Ngày kết thúc phải sau ngày bắt đầu");
-            }
-        }
+        validateDate(request.getStartDate(), request.getEndDate());
 
         Tour tour = new Tour();
         tour.setTourName(request.getTourName());
@@ -115,28 +111,11 @@ public class TourService {
         tour.setEndDate(request.getEndDate());
         tour.setCategory(category);
 
-        if (request.getImg() != null && !request.getImg().isEmpty()){
-            try{
-                String uploadDir = System.getProperty("user.dir") + "/uploads";
-                Path uploadPath = Paths.get(uploadDir);;
-                if (!Files.exists(uploadPath)){
-                    Files.createDirectories(uploadPath);
-                }
-
-                String fileName = System.currentTimeMillis() + "_" + request.getImg().getOriginalFilename();
-                Path filePath = uploadPath.resolve(fileName);
-                Files.copy(request.getImg().getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-                tour.setImg("/uploads/" + fileName);
-
-                System.out.println("SAVE TO: " + filePath.toAbsolutePath());
-
-            } catch (Exception e) {
-                throw new RuntimeException("Could not store file: " + e.getMessage());
-            }
-        }
+        handleUploadImage(request, tour);
 
         redisTemplate.delete("tours");
+
+        log.info("Tạo tour thành công: {}", tour.getTourName());
 
         return mapToResponse(tourRepository.save(tour));
     }
@@ -144,16 +123,12 @@ public class TourService {
     public TourResponse update(Integer id, TourRequest request) {
 
         Tour tour = tourRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Tour not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tour"));
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new NotFoundException("Category not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục"));
 
-        if (request.getStartDate() != null && request.getEndDate() != null){
-            if (request.getEndDate().isBefore(request.getStartDate())){
-                throw new RuntimeException("Ngày kết thúc phải sau ngày bắt đầu");
-            }
-        }
+        validateDate(request.getStartDate(), request.getEndDate());
 
         tour.setTourName(request.getTourName());
         tour.setPrice(request.getPrice());
@@ -163,57 +138,98 @@ public class TourService {
         tour.setEndDate(request.getEndDate());
         tour.setCategory(category);
 
-        if (request.getImg() != null && !request.getImg().isEmpty()) {
-            try {
-                String uploadDir = "uploads/";
-                Path uploadPath = Paths.get(uploadDir);
-
-                if (!Files.exists(uploadPath)) {
-                    Files.createDirectories(uploadPath);
-                }
-
-                String filename = System.currentTimeMillis() + "_" + request.getImg().getOriginalFilename();
-                Path filePath = uploadPath.resolve(filename);
-
-                Files.copy(request.getImg().getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-                if (tour.getImg() != null) {
-                    Path oldPath = Paths.get("uploads/" + tour.getImg().replace("/uploads/", ""));
-                    Files.deleteIfExists(oldPath);
-                }
-
-                tour.setImg("/uploads/" + filename);
-
-            } catch (Exception e) {
-                throw new RuntimeException("Upload file failed: " + e.getMessage());
-            }
-        }
+        handleUpdateImage(request, tour);
 
         Tour savedTour = tourRepository.save(tour);
 
         TourResponse response = mapToResponse(savedTour);
 
         redisTemplate.opsForValue().set("tour:" + id, response, 10, TimeUnit.MINUTES);
-
         redisTemplate.delete("tours");
 
-        return mapToResponse(tourRepository.save(tour));
+        log.info("Cập nhật tour id={} thành công", id);
+
+        return response;
     }
 
     public void delete(Integer id) {
         if (!tourRepository.existsById(id)) {
-            throw new NotFoundException("Tour not found");
+            throw new NotFoundException("Không tìm thấy tour");
         }
+
         tourRepository.deleteById(id);
 
         redisTemplate.delete("tours");
         redisTemplate.delete("tour:" + id);
+
+        log.info("Xóa tour id={} thành công", id);
     }
 
-    private static final String IMAGE_BASE_URL = "http://localhost:8080/tours/";
+    private void validateDate(LocalDate start, LocalDate end) {
+        if (start != null && end != null && end.isBefore(start)) {
+            throw new BadRequestException("Ngày kết thúc phải sau ngày bắt đầu");
+        }
+    }
+
+    private void handleUploadImage(TourRequest request, Tour tour) {
+        if (request.getImg() == null || request.getImg().isEmpty()) return;
+
+        try {
+            String uploadDir = System.getProperty("user.dir") + "/uploads";
+            Path uploadPath = Paths.get(uploadDir);
+
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            String fileName = System.currentTimeMillis() + "_" + request.getImg().getOriginalFilename();
+            Path filePath = uploadPath.resolve(fileName);
+
+            Files.copy(request.getImg().getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            tour.setImg("/uploads/" + fileName);
+
+            log.info("Upload ảnh thành công: {}", filePath.toAbsolutePath());
+
+        } catch (Exception e) {
+            log.error("Lỗi upload ảnh", e);
+            throw new BadRequestException("Không thể upload ảnh");
+        }
+    }
+
+    private void handleUpdateImage(TourRequest request, Tour tour) {
+        if (request.getImg() == null || request.getImg().isEmpty()) return;
+
+        try {
+            Path uploadPath = Paths.get("uploads");
+
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            String filename = System.currentTimeMillis() + "_" + request.getImg().getOriginalFilename();
+            Path filePath = uploadPath.resolve(filename);
+
+            Files.copy(request.getImg().getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            if (tour.getImg() != null) {
+                Path oldPath = Paths.get("uploads/" + tour.getImg().replace("/uploads/", ""));
+                Files.deleteIfExists(oldPath);
+            }
+
+            tour.setImg("/uploads/" + filename);
+
+            log.info("Cập nhật ảnh thành công");
+
+        } catch (Exception e) {
+            log.error("Lỗi cập nhật ảnh", e);
+            throw new BadRequestException("Upload ảnh thất bại");
+        }
+    }
 
     private TourResponse mapToResponse(Tour tour) {
         TourResponse res = new TourResponse();
+
         res.setId(tour.getId());
         res.setTourName(tour.getTourName());
         res.setQuantity(tour.getQuantity());

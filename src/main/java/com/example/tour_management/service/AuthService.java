@@ -1,85 +1,110 @@
 package com.example.tour_management.service;
 
-import com.example.tour_management.dto.auth.RegisterRequest;
-import com.example.tour_management.dto.auth.RegisterResponse;
+import com.example.tour_management.dto.auth.*;
 import com.example.tour_management.entity.User;
-import com.example.tour_management.dto.auth.LoginRequest;
-import com.example.tour_management.dto.auth.LoginResponse;
 import com.example.tour_management.exception.BadRequestException;
 import com.example.tour_management.repository.RoleRepository;
 import com.example.tour_management.repository.UserRepository;
 import com.example.tour_management.security.JwtUtil;
 import com.example.tour_management.security.UserDetailsServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.*;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 public class AuthService {
-    @Autowired
-    private AuthenticationManager authenticationManager;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private static final Logger log =
+            LoggerFactory.getLogger(AuthService.class);
 
-    @Autowired
-    private UserDetailsServiceImpl userDetailsService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
+    private final UserDetailsServiceImpl userDetailsService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private RoleRepository roleRepository;
+    public AuthService(
+            AuthenticationManager authenticationManager,
+            JwtUtil jwtUtil,
+            UserDetailsServiceImpl userDetailsService,
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            RoleRepository roleRepository
+    ) {
+        this.authenticationManager = authenticationManager;
+        this.jwtUtil = jwtUtil;
+        this.userDetailsService = userDetailsService;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.roleRepository = roleRepository;
+    }
 
     public LoginResponse login(LoginRequest request){
-        //Kiểm tra user tồn tại
+
+        log.info("Yêu cầu đăng nhập với email: {}", request.getEmail());
+
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadCredentialsException("Sai email hoặc mật khẩu"));
+                .orElseThrow(() -> {
+                    log.warn("Email không tồn tại: {}", request.getEmail());
+                    return new BadCredentialsException("Sai email hoặc mật khẩu");
+                });
 
-        //Xác thực email + password
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
+        } catch (BadCredentialsException ex) {
+            log.warn("Sai mật khẩu cho email: {}", request.getEmail());
+            throw new BadCredentialsException("Sai email hoặc mật khẩu");
+        }
 
-        //Load userDetail để tạo JWT
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());
+        UserDetails userDetails =
+                userDetailsService.loadUserByUsername(request.getEmail());
 
         String fullName = user.getUserName();
 
         String token = jwtUtil.generateToken(userDetails, fullName);
+
+        log.info("Đăng nhập thành công: {}", request.getEmail());
 
         return new LoginResponse(token);
     }
 
     public RegisterResponse register(RegisterRequest request) {
 
-        // Check email trùng
+        log.info("Yêu cầu đăng ký với email: {}", request.getEmail());
+
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new BadRequestException("Email không được để trống");
+        }
+
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            log.warn("Email đã tồn tại: {}", request.getEmail());
             throw new BadRequestException("Email đã được sử dụng");
         }
 
-        // Validate password
-        if (request.getPassword().length() < 6) {
-            throw new BadRequestException("Mật khẩu phải nhiều hơn hoặc bằng 6 ký tự");
+        if (request.getPassword() == null || request.getPassword().length() < 6) {
+            throw new BadRequestException("Mật khẩu phải >= 6 ký tự");
         }
 
-        // Validate phone (VN)
         if (request.getPhone() != null &&
                 !request.getPhone().matches("^0\\d{9}$")) {
             throw new BadRequestException("Số điện thoại không hợp lệ");
         }
 
-        // Tạo user
+        var role = roleRepository.findByRoleName("ROLE_CUSTOMER")
+                .orElseThrow(() -> {
+                    log.error("Không tìm thấy ROLE_CUSTOMER trong DB");
+                    return new RuntimeException("Role không tồn tại");
+                });
+
         User user = new User();
         user.setUserName(request.getUserName());
         user.setEmail(request.getEmail());
@@ -87,13 +112,12 @@ public class AuthService {
         user.setPhone(request.getPhone());
         user.setDateOfBirth(request.getDateOfBirth());
         user.setAddress(request.getAddress());
-
-        // Role mặc định
-        user.setRole(roleRepository.findByRoleName ("ROLE_CUSTOMER").get());
+        user.setRole(role);
 
         userRepository.save(user);
+
+        log.info("Đăng ký thành công: {}", request.getEmail());
 
         return new RegisterResponse("Đăng ký thành công");
     }
 }
-

@@ -7,8 +7,10 @@ import com.example.tour_management.exception.BadRequestException;
 import com.example.tour_management.exception.NotFoundException;
 import com.example.tour_management.repository.PasswordResetTokenRepository;
 import com.example.tour_management.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,20 +20,32 @@ import java.util.UUID;
 @Service
 public class PasswordResetTokenService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private static final Logger log =
+            LoggerFactory.getLogger(PasswordResetTokenService.class);
 
-    @Autowired
-    private PasswordResetTokenRepository passwordResetTokenRepository;
+    private final UserRepository userRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final RabbitTemplate rabbitTemplate;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    @Value("${app.fe-url}")
+    private String feUrl;
 
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
+    public PasswordResetTokenService(
+            UserRepository userRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
+            PasswordEncoder passwordEncoder,
+            RabbitTemplate rabbitTemplate
+    ) {
+        this.userRepository = userRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.rabbitTemplate = rabbitTemplate;
+    }
 
-    // FORGOT PASSWORD
     public void forgotPassword(String email) {
+
+        log.info("Yêu cầu quên mật khẩu với email: {}", email);
 
         if (email == null || email.isBlank()) {
             throw new BadRequestException("Email không được để trống");
@@ -41,9 +55,14 @@ public class PasswordResetTokenService {
             throw new BadRequestException("Email không đúng định dạng");
         }
 
-        if (!userRepository.existsByEmail(email)) {
-            throw new NotFoundException("Email không tồn tại");
-        }
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("Email không tồn tại"));
+
+        passwordResetTokenRepository.findByEmail(email).ifPresent(existing -> {
+            if (existing.getExpiryDate().isAfter(LocalDateTime.now())) {
+                throw new BadRequestException("Vui lòng đợi trước khi gửi lại yêu cầu");
+            }
+        });
 
         passwordResetTokenRepository.deleteByEmail(email);
 
@@ -56,25 +75,46 @@ public class PasswordResetTokenService {
 
         passwordResetTokenRepository.save(resetToken);
 
-        String link = "http://localhost:4200/reset-password?token=" + token;
+        String link = feUrl + "/reset-password?token=" + token;
 
         ResetPasswordEmailMessage message =
                 new ResetPasswordEmailMessage(email, link);
 
-        rabbitTemplate.convertAndSend(
-                "email.exchange",
-                "email.reset",
-                message
-        );
+        try {
+            rabbitTemplate.convertAndSend(
+                    "email.exchange",
+                    "email.reset",
+                    message
+            );
+
+            log.info("Đã gửi message reset password vào queue cho email: {}", email);
+
+        } catch (Exception e) {
+            log.error("Lỗi gửi RabbitMQ: {}", e.getMessage());
+            throw new BadRequestException("Không thể gửi email reset mật khẩu");
+        }
     }
 
-    // RESET PASSWORD
     public void resetPassword(String token, String newPassword) {
 
+        log.info("Thực hiện reset password với token");
+
+        if (token == null || token.isBlank()) {
+            throw new BadRequestException("Token không hợp lệ");
+        }
+
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BadRequestException("Mật khẩu phải có ít nhất 6 ký tự");
+        }
+
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
-                .orElseThrow(() -> new BadRequestException("Token không hợp lệ"));
+                .orElseThrow(() -> {
+                    log.error("Token không tồn tại");
+                    return new BadRequestException("Token không hợp lệ");
+                });
 
         if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            log.warn("Token đã hết hạn");
             throw new BadRequestException("Token đã hết hạn");
         }
 
@@ -85,5 +125,7 @@ public class PasswordResetTokenService {
         userRepository.save(user);
 
         passwordResetTokenRepository.delete(resetToken);
+
+        log.info("Reset password thành công cho email: {}", user.getEmail());
     }
 }

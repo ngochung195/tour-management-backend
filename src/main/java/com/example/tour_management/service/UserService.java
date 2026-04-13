@@ -9,6 +9,8 @@ import com.example.tour_management.exception.NotFoundException;
 import com.example.tour_management.repository.RoleRepository;
 import com.example.tour_management.repository.UserRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +23,8 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
+
     @Autowired
     private UserRepository userRepository;
 
@@ -30,29 +34,26 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    public UserResponse getCurrentUser(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    public UserResponse getCurrentUser() {
+        String email = getCurrentUserEmail();
 
-        String email = authentication.getName();
+        log.info("Lấy thông tin user hiện tại: {}", email);
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow( () -> new NotFoundException("User not fournd"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
 
         return mapToResponse(user);
     }
 
-    public UserResponse updateCurrentUser(UserRequest request){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    public UserResponse updateCurrentUser(UserRequest request) {
+        String email = getCurrentUserEmail();
 
-        String email = authentication.getName();
+        log.info("Cập nhật thông tin user: {}", email);
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow( () -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
 
-        user.setUserName(request.getUserName());
-        user.setDateOfBirth(request.getDateOfBirth());
-        user.setPhone(request.getPhone());
-        user.setAddress(request.getAddress());
+        updateUserInfo(user, request);
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -62,6 +63,8 @@ public class UserService {
     }
 
     public List<UserResponse> getAll() {
+        log.info("Lấy danh sách người dùng");
+
         return userRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
@@ -69,21 +72,26 @@ public class UserService {
     }
 
     public UserResponse getById(Integer id) {
+        log.info("Lấy user id={}", id);
+
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
+
         return mapToResponse(user);
     }
 
-    public List<UserResponse> searchUsers(String name, String role){
-       List<User> users = userRepository.searchUsers(name, role);
+    public List<UserResponse> searchUsers(String name, String role) {
+        log.info("Tìm kiếm user: name={}, role={}", name, role);
 
-       return users.stream().map(this::mapToResponse).toList();
+        List<User> users = userRepository.searchUsers(name, role);
+
+        return users.stream().map(this::mapToResponse).toList();
     }
 
     public UserResponse create(UserRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email already exists");
+            throw new BadRequestException("Email đã tồn tại");
         }
 
         String roleName = request.getRoleName();
@@ -93,7 +101,7 @@ public class UserService {
         }
 
         Role role = roleRepository.findByRoleName(roleName)
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy vai trò"));
 
         User user = new User();
         user.setUserName(request.getUserName());
@@ -104,58 +112,75 @@ public class UserService {
         user.setAddress(request.getAddress());
         user.setRole(role);
 
+        log.info("Tạo user mới: {}", request.getEmail());
+
         return mapToResponse(userRepository.save(user));
     }
 
     public UserResponse update(Integer id, UserRequest request) {
 
+        log.info("Cập nhật user id={}", id);
+
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
 
         String oldRole = user.getRole().getRoleName();
 
-        user.setUserName(request.getUserName());
-        user.setEmail(request.getEmail());
-        user.setDateOfBirth(request.getDateOfBirth());
-        user.setPhone(request.getPhone());
-        user.setAddress(request.getAddress());
+        updateUserInfo(user, request);
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
         Role role = roleRepository.findByRoleName(request.getRoleName())
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy vai trò"));
 
         user.setRole(role);
 
         userRepository.save(user);
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentEmail = authentication.getName();
+        String currentEmail = getCurrentUserEmail();
 
         User currentUser = userRepository.findByEmail(currentEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
 
         boolean roleChanged = !oldRole.equals(role.getRoleName());
-
         boolean needRelogin = currentUser.getId().equals(user.getId()) && roleChanged;
 
         UserResponse response = mapToResponse(user);
         response.setNeedRelogin(needRelogin);
+
+        log.info("Cập nhật user thành công, cần đăng nhập lại: {}", needRelogin);
 
         return response;
     }
 
     public void delete(Integer id) {
         if (!userRepository.existsById(id)) {
-            throw new NotFoundException("User not found");
+            throw new NotFoundException("Không tìm thấy người dùng");
         }
+
         userRepository.deleteById(id);
+
+        log.info("Xóa user id={} thành công", id);
+    }
+
+    private String getCurrentUserEmail() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication.getName();
+    }
+
+    private void updateUserInfo(User user, UserRequest request) {
+        user.setUserName(request.getUserName());
+        user.setEmail(request.getEmail());
+        user.setDateOfBirth(request.getDateOfBirth());
+        user.setPhone(request.getPhone());
+        user.setAddress(request.getAddress());
     }
 
     private UserResponse mapToResponse(User user) {
         UserResponse res = new UserResponse();
+
         res.setId(user.getId());
         res.setUserName(user.getUserName());
         res.setEmail(user.getEmail());
@@ -163,6 +188,7 @@ public class UserService {
         res.setPhone(user.getPhone());
         res.setAddress(user.getAddress());
         res.setRoleName(user.getRole().getRoleName());
+
         return res;
     }
 }
