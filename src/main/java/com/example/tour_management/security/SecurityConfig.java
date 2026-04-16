@@ -106,6 +106,30 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
 
+                        // HOTELS
+                        .requestMatchers(HttpMethod.GET, "/api/hotels/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/hotels/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/hotels/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/hotels/**").hasAnyRole("ADMIN", "MANAGER")
+
+                        // VEHICLES
+                        .requestMatchers(HttpMethod.GET, "/api/vehicles/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/vehicles/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/vehicles/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/vehicles/**").hasAnyRole("ADMIN", "MANAGER")
+
+                        // TOUR DETAILS
+                        .requestMatchers(HttpMethod.GET, "/api/tour-details/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/tour-details/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/tour-details/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/tour-details/**").hasAnyRole("ADMIN", "MANAGER")
+
+                        // ITINERARY
+                        .requestMatchers(HttpMethod.GET, "/api/itineraries/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/itineraries/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/itineraries/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/itineraries/**").hasAnyRole("ADMIN", "MANAGER")
+
                         .anyRequest().authenticated()
                 )
 
