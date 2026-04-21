@@ -35,6 +35,9 @@ public class TourRequest {
         @NotNull(message = "End date is required")
         private LocalDate endDate;
 
+        private Integer hotelId;
+        private Integer vehicleId;
+
         private MultipartFile img;
 
         public String getTourName() {
@@ -99,5 +102,21 @@ public class TourRequest {
 
         public void setImg(MultipartFile img) {
                 this.img = img;
+        }
+
+        public Integer getHotelId() {
+                return hotelId;
+        }
+
+        public void setHotelId(Integer hotelId) {
+                this.hotelId = hotelId;
+        }
+
+        public Integer getVehicleId() {
+                return vehicleId;
+        }
+
+        public void setVehicleId(Integer vehicleId) {
+                this.vehicleId = vehicleId;
         }
 }

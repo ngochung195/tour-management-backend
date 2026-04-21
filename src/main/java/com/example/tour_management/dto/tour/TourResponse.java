@@ -18,6 +18,8 @@ public class TourResponse implements Serializable {
 
     private Integer categoryId;
     private String categoryName;
+    private String hotelName;
+    private String vehicleName;
 
     public Integer getId() {
         return id;
@@ -97,5 +99,21 @@ public class TourResponse implements Serializable {
 
     public void setCategoryName(String categoryName) {
         this.categoryName = categoryName;
+    }
+
+    public String getHotelName() {
+        return hotelName;
+    }
+
+    public void setHotelName(String hotelName) {
+        this.hotelName = hotelName;
+    }
+
+    public String getVehicleName() {
+        return vehicleName;
+    }
+
+    public void setVehicleName(String vehicleName) {
+        this.vehicleName = vehicleName;
     }
 }

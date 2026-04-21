@@ -34,11 +34,14 @@ public class TourController {
     // manager, admin
     @GetMapping("/search-tour")
     public ResponseEntity<List<TourResponse>> searchTour(
-            @RequestParam(required = false)String keyword,
-            @RequestParam(required = false)LocalDate startDate,
-            @RequestParam(required = false)LocalDate endDate
-            ){
-        return ResponseEntity.ok(tourService.searchTour(keyword, startDate, endDate));
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) Integer categoryId
+    ) {
+        return ResponseEntity.ok(
+                tourService.searchTour(keyword, startDate, endDate, categoryId)
+        );
     }
 
     @PostMapping
