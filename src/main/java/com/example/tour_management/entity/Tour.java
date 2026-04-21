@@ -1,17 +1,20 @@
 package com.example.tour_management.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "tours")
 public class Tour {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Integer id;
 
     @ManyToOne
@@ -20,91 +23,69 @@ public class Tour {
 
     @Column(name = "tour_name", columnDefinition = "nvarchar(60)")
     private String tourName;
+
     @Column(name = "quantity")
     private Integer quantity;
+
     @Column(name = "start_date")
     private LocalDate startDate;
+
     @Column(name = "end_date")
     private LocalDate endDate;
+
     @Column(name = "description", columnDefinition = "nvarchar(max)")
     private String description;
+
     @Column(name = "img", columnDefinition = "nvarchar(max)")
     private String img;
+
     @Column(name = "price")
     @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal price;
 
-    public Tour(){}
+    @OneToMany(mappedBy = "tour", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<TourDetail> tourDetails = new ArrayList<>();
 
-    public Integer getId() {
-        return id;
+    public Tour() {}
+
+    public void addTourDetail(TourDetail detail) {
+        tourDetails.add(detail);
+        detail.setTour(this);
     }
 
-    public void setId(Integer id) {
-        this.id = id;
+    public void removeTourDetail(TourDetail detail) {
+        tourDetails.remove(detail);
+        detail.setTour(null);
     }
 
-    public Category getCategory() {
-        return category;
-    }
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public void setCategory(Category category) {
-        this.category = category;
-    }
+    public Category getCategory() { return category; }
+    public void setCategory(Category category) { this.category = category; }
 
-    public String getTourName() {
-        return tourName;
-    }
+    public String getTourName() { return tourName; }
+    public void setTourName(String tourName) { this.tourName = tourName; }
 
-    public void setTourName(String tourName) {
-        this.tourName = tourName;
-    }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
 
-    public Integer getQuantity() {
-        return quantity;
-    }
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
 
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
 
-    public LocalDate getStartDate() {
-        return startDate;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
+    public String getImg() { return img; }
+    public void setImg(String img) { this.img = img; }
 
-    public LocalDate getEndDate() {
-        return endDate;
-    }
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
 
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getImg() {
-        return img;
-    }
-
-    public void setImg(String img) {
-        this.img = img;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public void setPrice(BigDecimal price) {
-        this.price = price;
-    }
+    public List<TourDetail> getTourDetails() { return tourDetails; }
+    public void setTourDetails(List<TourDetail> tourDetails) { this.tourDetails = tourDetails; }
 }

@@ -40,21 +40,21 @@ public class TourDetailService {
     }
 
     public List<TourDetailResponse> getByTourId(Integer tourId) {
-        return tourDetailRepository.findByTourId(tourId)
+        return tourDetailRepository.findByTour_Id(tourId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
     public List<TourDetailResponse> getByHotelId(Integer hotelId) {
-        return tourDetailRepository.findByHotelId(hotelId)
+        return tourDetailRepository.findByHotel_Id(hotelId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
     public List<TourDetailResponse> getByVehicleId(Integer vehicleId) {
-        return tourDetailRepository.findByVehicleId(vehicleId)
+        return tourDetailRepository.findByVehicle_Id(vehicleId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();

@@ -7,9 +7,9 @@ import java.util.List;
 
 public interface TourDetailRepository extends JpaRepository<TourDetail, Integer> {
 
-    List<TourDetail> findByTourId(Integer tourId);
+    List<TourDetail> findByTour_Id(Integer tourId);
 
-    List<TourDetail> findByHotelId(Integer hotelId);
+    List<TourDetail> findByHotel_Id(Integer hotelId);
 
-    List<TourDetail> findByVehicleId(Integer vehicleId);
+    List<TourDetail> findByVehicle_Id(Integer vehicleId);
 }
