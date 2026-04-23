@@ -130,6 +130,24 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/itineraries/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers(HttpMethod.DELETE, "/api/itineraries/**").hasAnyRole("ADMIN", "MANAGER")
 
+                        // PROMOTION
+                        .requestMatchers(HttpMethod.GET, "/api/promotions/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/promotions/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/promotions/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/promotions/**").hasAnyRole("ADMIN", "MANAGER")
+
+
+                        // CONTACT
+                        .requestMatchers(HttpMethod.POST, "/api/contacts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/contacts/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/contacts/**").hasAnyRole("ADMIN", "MANAGER")
+
+                        // REVIEW
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/**").hasRole("CUSTOMER")
+                        .requestMatchers(HttpMethod.PUT, "/api/reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/reviews/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
 

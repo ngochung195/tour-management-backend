@@ -67,4 +67,15 @@ public class BookingController {
 
         return ResponseEntity.noContent().build();
     }
+
+    // DOANH THU
+    @GetMapping("/revenues/month")
+    public ResponseEntity<?> getRevenueByMonth() {
+        return ResponseEntity.ok(bookingService.getRevenueByMonth());
+    }
+
+    @GetMapping("/revenues/quarter")
+    public ResponseEntity<?> getRevenueByQuarter() {
+        return ResponseEntity.ok(bookingService.getRevenueByQuarter());
+    }
 }
