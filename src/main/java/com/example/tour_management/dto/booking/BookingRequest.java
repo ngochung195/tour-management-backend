@@ -12,6 +12,8 @@ public class BookingRequest {
     @Min(value = 1, message = "Số chỗ phải lớn hơn 0")
     private Integer quantity;
 
+    private String promotionCode;
+
     public Integer getTourId() {
         return tourId;
     }
@@ -26,5 +28,13 @@ public class BookingRequest {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public String getPromotionCode() {
+        return promotionCode;
+    }
+
+    public void setPromotionCode(String promotionCode) {
+        this.promotionCode = promotionCode;
     }
 }

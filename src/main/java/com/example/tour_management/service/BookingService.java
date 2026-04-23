@@ -2,6 +2,7 @@ package com.example.tour_management.service;
 
 import com.example.tour_management.dto.booking.*;
 import com.example.tour_management.dto.email.EmailMessage;
+import com.example.tour_management.dto.revenue.RevenueResponse;
 import com.example.tour_management.entity.*;
 import com.example.tour_management.enums.BookingStatus;
 import com.example.tour_management.exception.BadRequestException;
@@ -15,8 +16,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,19 +36,22 @@ public class BookingService {
     private final TourRepository tourRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RabbitTemplate rabbitTemplate;
+    private final PromotionRepository promotionRepository;
 
     public BookingService(
             BookingRepository bookingRepository,
             UserRepository userRepository,
             TourRepository tourRepository,
             RedisTemplate<String, Object> redisTemplate,
-            RabbitTemplate rabbitTemplate
+            RabbitTemplate rabbitTemplate,
+            PromotionRepository promotionRepository
     ) {
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.tourRepository = tourRepository;
         this.redisTemplate = redisTemplate;
         this.rabbitTemplate = rabbitTemplate;
+        this.promotionRepository = promotionRepository;
     }
 
     public List<BookingResponse> getAll() {
@@ -101,22 +107,50 @@ public class BookingService {
         if (tour.getQuantity() < quantity) {
             log.warn("Không đủ chỗ. tourId={}, available={}, requested={}",
                     tour.getId(), tour.getQuantity(), quantity);
-
             throw new BadRequestException("Số lượng tour không đủ");
         }
 
         redisTemplate.delete("tours");
         redisTemplate.delete("tour:" + tour.getId());
 
+        BigDecimal unitPrice = tour.getPrice();
+        LocalDateTime now = LocalDateTime.now();
+
+        String promoCode = req.getPromotionCode();
+        if (promoCode != null && !promoCode.isBlank()) {
+
+            Optional<Promotion> promoOpt =
+                    promotionRepository.findByCode(promoCode.trim().toUpperCase());
+
+            if (promoOpt.isPresent()) {
+                Promotion promo = promoOpt.get();
+
+                if (Boolean.TRUE.equals(promo.getActive())
+                        && !now.isBefore(promo.getStartDate())
+                        && !now.isAfter(promo.getEndDate())) {
+
+                    BigDecimal discountRate =
+                            promo.getDiscount().divide(BigDecimal.valueOf(100));
+
+                    unitPrice = unitPrice.multiply(
+                            BigDecimal.ONE.subtract(discountRate)
+                    );
+
+                    log.info("Áp mã giảm giá: code={}, discount={}%",
+                            promoCode, promo.getDiscount());
+                } else {
+                    log.warn("Mã không hợp lệ hoặc hết hạn: {}", promoCode);
+                }
+            } else {
+                log.warn("Không tìm thấy mã: {}", promoCode);
+            }
+        }
+
         Booking booking = new Booking();
         booking.setUser(user);
         booking.setTour(tour);
         booking.setQuantity(quantity);
-        booking.setTotal(
-                tour.getPrice().multiply(
-                        java.math.BigDecimal.valueOf(quantity)
-                )
-        );
+        booking.setTotal(unitPrice.multiply(BigDecimal.valueOf(quantity)));
         booking.setStatus(BookingStatus.PENDING);
         booking.setBookingDate(LocalDateTime.now());
 
@@ -286,6 +320,14 @@ public class BookingService {
         }
 
         bookingRepository.deleteById(id);
+    }
+
+    public List<RevenueResponse> getRevenueByMonth() {
+        return bookingRepository.getRevenueByMonth();
+    }
+
+    public List<RevenueResponse> getRevenueByQuarter() {
+        return bookingRepository.getRevenueByQuarter();
     }
 
     private BookingResponse toResponse(Booking b) {
