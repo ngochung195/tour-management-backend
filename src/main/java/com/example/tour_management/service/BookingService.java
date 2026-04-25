@@ -11,8 +11,11 @@ import com.example.tour_management.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,11 +58,33 @@ public class BookingService {
     }
 
     public List<BookingResponse> getAll() {
-        log.info("Lấy toàn bộ booking");
-        return bookingRepository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        User currentUser = getCurrentUser();
+
+        if (currentUser == null) {
+            throw new BadRequestException("Chưa đăng nhập");
+        }
+
+        String role = currentUser.getRole().getRoleName();
+
+        if (role.startsWith("ROLE_")) role = role.substring(5);
+
+        if ("ADMIN".equals(role)) {
+            log.info("Admin lấy tất cả booking");
+            return bookingRepository.findAll()
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        if ("MANAGER".equals(role)) {
+            log.info("Manager {} lấy booking theo tour của mình", currentUser.getEmail());
+            return bookingRepository.findByManagerId(currentUser.getId())
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        throw new BadRequestException("Không có quyền xem booking");
     }
 
     public BookingResponse getById(Integer id) {
@@ -320,6 +345,14 @@ public class BookingService {
         }
 
         bookingRepository.deleteById(id);
+    }
+
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().equals("anonymousUser")) {
+            return null;
+        }
+        return userRepository.findByEmail(auth.getName()).orElse(null);
     }
 
     public List<RevenueResponse> getRevenueByMonth() {

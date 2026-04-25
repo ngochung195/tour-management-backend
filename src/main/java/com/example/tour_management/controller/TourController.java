@@ -2,10 +2,10 @@ package com.example.tour_management.controller;
 
 import com.example.tour_management.dto.tour.TourRequest;
 import com.example.tour_management.dto.tour.TourResponse;
+import com.example.tour_management.entity.User;
 import com.example.tour_management.service.TourService;
-
-import jakarta.validation.Valid;
-
+import com.example.tour_management.service.UserService;
+import org.springframework.security.core.Authentication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +19,9 @@ public class TourController {
 
     @Autowired
     private TourService tourService;
+
+    @Autowired
+    private UserService userService;
 
     // customer
     @GetMapping
@@ -45,9 +48,7 @@ public class TourController {
     }
 
     @PostMapping
-    public ResponseEntity<TourResponse> create(
-            @ModelAttribute TourRequest req) {
-
+    public ResponseEntity<TourResponse> create(@ModelAttribute TourRequest req) {
         return ResponseEntity.ok(tourService.create(req));
     }
 
@@ -55,7 +56,6 @@ public class TourController {
     public ResponseEntity<TourResponse> update(
             @PathVariable Integer id,
             @ModelAttribute TourRequest req) {
-
         return ResponseEntity.ok(tourService.update(id, req));
     }
 
