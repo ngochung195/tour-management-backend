@@ -43,6 +43,9 @@ public class Tour {
     @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal price;
 
+    @Column(name = "manager_id")
+    private Integer managerId;
+
     @OneToMany(mappedBy = "tour", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<TourDetail> tourDetails = new ArrayList<>();
@@ -85,6 +88,14 @@ public class Tour {
 
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+
+    public Integer getManagerId() {
+        return managerId;
+    }
+
+    public void setManagerId(Integer managerId) {
+        this.managerId = managerId;
+    }
 
     public List<TourDetail> getTourDetails() { return tourDetails; }
     public void setTourDetails(List<TourDetail> tourDetails) { this.tourDetails = tourDetails; }

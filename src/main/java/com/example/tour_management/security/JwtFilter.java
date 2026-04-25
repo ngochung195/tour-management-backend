@@ -33,15 +33,13 @@ public class JwtFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         String method = request.getMethod();
 
-        return path.startsWith("/tours/") ||
-                path.startsWith("/images/") ||
+        return path.startsWith("/images/") ||
                 path.startsWith("/uploads/") ||
                 path.startsWith("/css/") ||
                 path.startsWith("/js/") ||
                 path.startsWith("/api/auth") ||
                 path.startsWith("/oauth2") ||
-                path.startsWith("/login") ||
-                (path.startsWith("/api/tours") && method.equals("GET"));
+                path.startsWith("/login");
     }
 
     @Override

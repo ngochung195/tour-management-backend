@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.*;
@@ -24,46 +26,73 @@ public class TourService {
 
     private final TourRepository tourRepository;
     private final CategoryRepository categoryRepository;
+    private final UserRepository userRepository;
     private final HotelRepository hotelRepository;
     private final VehicleRepository vehicleRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String IMAGE_BASE_URL = "http://localhost:8080/tours/";
-
     public TourService(TourRepository tourRepository,
                        CategoryRepository categoryRepository,
                        HotelRepository hotelRepository,
                        VehicleRepository vehicleRepository,
+                       UserRepository userRepository,
                        RedisTemplate<String, Object> redisTemplate,
                        ObjectMapper objectMapper) {
         this.tourRepository = tourRepository;
         this.categoryRepository = categoryRepository;
         this.hotelRepository = hotelRepository;
         this.vehicleRepository = vehicleRepository;
+        this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
     }
 
-    public List<TourResponse> getAll() {
-        String key = "tours";
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        Object cached = redisTemplate.opsForValue().get(key);
-        if (cached != null) {
-            return objectMapper.convertValue(
-                    cached,
-                    objectMapper.getTypeFactory()
-                            .constructCollectionType(List.class, TourResponse.class)
-            );
+        if (auth == null || auth.getName() == null || auth.getName().equals("anonymousUser")) {
+            return null;
         }
 
-        List<TourResponse> list = tourRepository.findAll()
+        return userRepository.findByEmail(auth.getName()).orElse(null);
+    }
+
+    public List<TourResponse> getAll() {
+
+        User user = getCurrentUser();
+
+        log.info("=== getAll() called ===");
+        log.info("Authentication: {}", SecurityContextHolder.getContext().getAuthentication());
+        log.info("User: {}", user == null ? "NULL" : user.getEmail());
+        if (user != null) {
+            log.info("Role từ DB: '{}'", user.getRole().getRoleName());
+        }
+
+        if (user == null) {
+            return getAllPublic();
+        }
+
+        String role = user.getRole().getRoleName();
+
+        if ("ROLE_ADMIN".equals(role)) {
+            return tourRepository.findAll()
+                    .stream().map(this::mapToResponse).toList();
+        }
+
+        if ("ROLE_MANAGER".equals(role)) {
+            return tourRepository.findByManagerId(user.getId())
+                    .stream().map(this::mapToResponse).toList();
+        }
+
+        return getAllPublic();
+    }
+
+    public List<TourResponse> getAllPublic() {
+        return tourRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
-
-        redisTemplate.opsForValue().set(key, list, 10, TimeUnit.MINUTES);
-        return list;
     }
 
     public TourResponse getById(Integer id) {
@@ -83,19 +112,13 @@ public class TourService {
         return res;
     }
 
-    public List<TourResponse> searchTour(String keyword,
-                                         LocalDate startDate,
-                                         LocalDate endDate,
-                                         Integer categoryId) {
-
-        List<Tour> tours = tourRepository.searchTour(keyword, startDate, endDate, categoryId);
-
-        return tours.stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
     public TourResponse create(TourRequest request) {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser == null) {
+            throw new BadRequestException("Chưa đăng nhập");
+        }
 
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục"));
@@ -111,6 +134,14 @@ public class TourService {
         tour.setEndDate(request.getEndDate());
         tour.setCategory(category);
 
+        if ("ROLE_MANAGER".equals(currentUser.getRole().getRoleName())) {
+            tour.setManagerId(currentUser.getId());
+        } else if ("ROLE_ADMIN".equals(currentUser.getRole().getRoleName())) {
+            tour.setManagerId(request.getManagerId());
+        } else {
+            throw new BadRequestException("Không có quyền tạo tour");
+        }
+
         handleUploadImage(request, tour);
 
         redisTemplate.delete("tours");
@@ -120,8 +151,16 @@ public class TourService {
 
     public TourResponse update(Integer id, TourRequest request) {
 
+        User currentUser = getCurrentUser();
+
         Tour tour = tourRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy tour"));
+
+        if ("ROLE_MANAGER".equals(currentUser.getRole().getRoleName())) {
+            if (!tour.getManagerId().equals(currentUser.getId())) {
+                throw new BadRequestException("Bạn không có quyền sửa tour này");
+            }
+        }
 
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục"));
@@ -136,6 +175,10 @@ public class TourService {
         tour.setEndDate(request.getEndDate());
         tour.setCategory(category);
 
+        if ("ROLE_ADMIN".equals(currentUser.getRole().getRoleName())) {
+            tour.setManagerId(request.getManagerId());
+        }
+
         handleUpdateImage(request, tour);
 
         Tour saved = tourRepository.save(tour);
@@ -147,14 +190,40 @@ public class TourService {
     }
 
     public void delete(Integer id) {
-        if (!tourRepository.existsById(id)) {
-            throw new NotFoundException("Không tìm thấy tour");
+
+        User currentUser = getCurrentUser();
+
+        Tour tour = tourRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy tour"));
+
+        if ("ROLE_MANAGER".equals(currentUser.getRole().getRoleName())) {
+            if (!tour.getManagerId().equals(currentUser.getId())) {
+                throw new BadRequestException("Bạn không có quyền xóa tour này");
+            }
         }
 
         tourRepository.deleteById(id);
 
         redisTemplate.delete("tours");
         redisTemplate.delete("tour:" + id);
+    }
+
+    public List<TourResponse> searchTour(String keyword,
+                                         LocalDate startDate,
+                                         LocalDate endDate,
+                                         Integer categoryId) {
+
+        User currentUser = getCurrentUser();
+
+        Integer managerId = null;
+        if (currentUser != null && "ROLE_MANAGER".equals(currentUser.getRole().getRoleName())) {
+            managerId = currentUser.getId();
+        }
+
+        return tourRepository.searchTour(keyword, startDate, endDate, categoryId, managerId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     private void validateDate(LocalDate start, LocalDate end) {
@@ -185,27 +254,11 @@ public class TourService {
     }
 
     private void handleUpdateImage(TourRequest request, Tour tour) {
-        if (request.getImg() == null || request.getImg().isEmpty()) return;
-
-        try {
-            Path path = Paths.get("uploads");
-            if (!Files.exists(path)) {
-                Files.createDirectories(path);
-            }
-
-            String fileName = System.currentTimeMillis() + "_" + request.getImg().getOriginalFilename();
-            Path filePath = path.resolve(fileName);
-
-            Files.copy(request.getImg().getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            tour.setImg("/uploads/" + fileName);
-
-        } catch (Exception e) {
-            throw new BadRequestException("Upload ảnh thất bại");
-        }
+        handleUploadImage(request, tour);
     }
 
     private TourResponse mapToResponse(Tour tour) {
+
         TourResponse res = new TourResponse();
 
         res.setId(tour.getId());
@@ -216,22 +269,8 @@ public class TourService {
         res.setEndDate(tour.getEndDate());
         res.setPrice(tour.getPrice());
 
-        String img = tour.getImg();
-
-        if (img != null && !img.isBlank()) {
-
-            if (img.startsWith("http")) {
-                res.setImg(img);
-            }
-            else if (img.startsWith("/uploads/")) {
-                res.setImg("http://localhost:8080" + img);
-            }
-            else if (img.startsWith("/tours/")) {
-                res.setImg("http://localhost:8080" + img);
-            }
-            else {
-                res.setImg("http://localhost:8080/tours/" + img);
-            }
+        if (tour.getImg() != null && !tour.getImg().isBlank()) {
+            res.setImg("http://localhost:8080" + tour.getImg());
         }
 
         if (tour.getCategory() != null) {

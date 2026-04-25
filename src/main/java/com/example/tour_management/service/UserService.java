@@ -80,6 +80,15 @@ public class UserService {
         return mapToResponse(user);
     }
 
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy user"));
+    }
+
+    public User getUserFromAuthentication(Authentication authentication) {
+        return findByEmail(authentication.getName());
+    }
+
     public List<UserResponse> searchUsers(String name, String role) {
         log.info("Tìm kiếm user: name={}, role={}", name, role);
 

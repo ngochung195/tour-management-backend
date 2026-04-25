@@ -40,6 +40,8 @@ public class TourRequest {
 
         private MultipartFile img;
 
+        private Integer managerId;
+
         public String getTourName() {
                 return tourName;
         }
@@ -118,5 +120,13 @@ public class TourRequest {
 
         public void setVehicleId(Integer vehicleId) {
                 this.vehicleId = vehicleId;
+        }
+
+        public Integer getManagerId() {
+                return managerId;
+        }
+
+        public void setManagerId(Integer managerId) {
+                this.managerId = managerId;
         }
 }
