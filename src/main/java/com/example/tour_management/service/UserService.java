@@ -1,5 +1,6 @@
 package com.example.tour_management.service;
 
+import com.example.tour_management.dto.user.ChangePasswordRequest;
 import com.example.tour_management.dto.user.UserRequest;
 import com.example.tour_management.dto.user.UserResponse;
 import com.example.tour_management.entity.Role;
@@ -162,6 +163,29 @@ public class UserService {
         log.info("Cập nhật user thành công, cần đăng nhập lại: {}", needRelogin);
 
         return response;
+    }
+
+    public void changePassword(ChangePasswordRequest req) {
+
+        String email = getCurrentUserEmail();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
+
+        if (!passwordEncoder.matches(req.getCurrentPassword(), user.getPassword())) {
+            throw new BadRequestException("Mật khẩu hiện tại không đúng");
+        }
+
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new BadRequestException("Xác nhận mật khẩu không khớp");
+        }
+
+        if (passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
+            throw new BadRequestException("Mật khẩu mới không được trùng mật khẩu cũ");
+        }
+
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        userRepository.save(user);
     }
 
     public void delete(Integer id) {
