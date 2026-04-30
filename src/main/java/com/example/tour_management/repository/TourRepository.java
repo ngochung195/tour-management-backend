@@ -5,6 +5,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -52,4 +53,15 @@ public interface TourRepository extends JpaRepository<Tour, Integer> {
             WHERE t.manager_id = :managerId
         """, nativeQuery = true)
     long countActiveTours(@Param("managerId") Integer managerId);
+
+    @Query(value = """
+                SELECT *
+                FROM tours
+                WHERE (:keyword IS NULL OR LOWER(tour_name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+                AND (:maxPrice IS NULL OR price <= :maxPrice)
+            """, nativeQuery = true)
+    List<Tour> searchForAI(
+            @Param("keyword") String keyword,
+            @Param("maxPrice") BigDecimal maxPrice
+    );
 }

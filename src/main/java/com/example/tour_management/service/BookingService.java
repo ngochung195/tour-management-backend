@@ -282,8 +282,11 @@ public class BookingService {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Booking not found"));
 
-        if (booking.getStatus() == BookingStatus.PAID
-                || booking.getStatus() == BookingStatus.APPROVED) {
+        if (booking.getStatus() == BookingStatus.APPROVED) {
+            throw new BadRequestException("Tour đã được xác nhận, không thể hủy");
+        }
+
+        if (booking.getStatus() == BookingStatus.PAID) {
 
             Tour tour = booking.getTour();
 

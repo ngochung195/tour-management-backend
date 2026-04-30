@@ -1,5 +1,6 @@
 package com.example.tour_management.controller;
 
+import com.example.tour_management.dto.user.ChangePasswordRequest;
 import com.example.tour_management.dto.user.UserRequest;
 import com.example.tour_management.dto.user.UserResponse;
 import com.example.tour_management.service.PasswordResetTokenService;
@@ -86,6 +87,14 @@ public class UserController {
             @Valid @RequestBody UserRequest req) {
 
         return ResponseEntity.ok(userService.update(id, req));
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
+        userService.changePassword(req);
+        return ResponseEntity.ok(Map.of(
+                "message", "Đổi mật khẩu thành công"
+        ));
     }
 
     @DeleteMapping("/{id}")

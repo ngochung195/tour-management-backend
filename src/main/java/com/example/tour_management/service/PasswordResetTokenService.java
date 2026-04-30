@@ -7,6 +7,7 @@ import com.example.tour_management.exception.BadRequestException;
 import com.example.tour_management.exception.NotFoundException;
 import com.example.tour_management.repository.PasswordResetTokenRepository;
 import com.example.tour_management.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -43,6 +44,7 @@ public class PasswordResetTokenService {
         this.rabbitTemplate = rabbitTemplate;
     }
 
+    @Transactional
     public void forgotPassword(String email) {
 
         log.info("Yêu cầu quên mật khẩu với email: {}", email);
@@ -95,6 +97,7 @@ public class PasswordResetTokenService {
         }
     }
 
+    @Transactional
     public void resetPassword(String token, String newPassword) {
 
         log.info("Thực hiện reset password với token");

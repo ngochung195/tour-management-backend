@@ -47,22 +47,24 @@ public class AuthService {
 
         log.info("Yêu cầu đăng nhập với email: {}", request.getEmail());
 
+        if (request.getEmail() == null || request.getEmail().isBlank()
+                || !request.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            throw new BadRequestException("Sai email");
+        }
+
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new BadRequestException("Vui lòng nhập đủ thông tin");
+        }
+
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Email không tồn tại: {}", request.getEmail());
-                    return new BadCredentialsException("Sai email hoặc mật khẩu");
+                    return new BadRequestException("Tài khoản không tồn tại");
                 });
 
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
-                            request.getPassword()
-                    )
-            );
-        } catch (BadCredentialsException ex) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             log.warn("Sai mật khẩu cho email: {}", request.getEmail());
-            throw new BadCredentialsException("Sai email hoặc mật khẩu");
+            throw new BadRequestException("Sai mật khẩu");
         }
 
         UserDetails userDetails =
