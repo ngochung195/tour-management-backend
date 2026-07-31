@@ -44,12 +44,19 @@ public class AdminDashboardService {
         res.setTotalTours(tourRepository.count());
         res.setTotalBookings(bookingRepository.count());
 
+        int currentMonth = LocalDate.now().getMonthValue();
+        int currentQuarter = (currentMonth - 1) / 3 + 1;
+
         BigDecimal monthly = bookingRepository.getRevenueByMonth()
-                .stream().map(r -> r.getRevenue())
+                .stream()
+                .filter(r -> r.getTime() == currentMonth)
+                .map(r -> r.getRevenue())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal quarterly = bookingRepository.getRevenueByQuarter()
-                .stream().map(r -> r.getRevenue())
+                .stream()
+                .filter(r -> r.getTime() == currentQuarter)
+                .map(r -> r.getRevenue())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         res.setMonthlyRevenue(monthly);

@@ -77,7 +77,10 @@ public class PromotionService {
         p.setDiscount(req.getDiscount());
         p.setStartDate(req.getStartDate());
         p.setEndDate(req.getEndDate());
-        p.setActive(req.getActive());
+
+        if (req.getActive() != null) {
+            p.setActive(req.getActive());
+        }
 
         return mapToResponse(promotionRepository.save(p));
     }
@@ -102,7 +105,9 @@ public class PromotionService {
         res.setDiscount(p.getDiscount());
         res.setStartDate(p.getStartDate());
         res.setEndDate(p.getEndDate());
-        res.setIsActive(p.getActive());
+
+        res.setIsActive(Boolean.TRUE.equals(p.getActive()));
+
         return res;
     }
 }

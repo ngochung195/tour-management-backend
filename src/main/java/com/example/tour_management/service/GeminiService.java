@@ -49,7 +49,15 @@ public class GeminiService {
             return parts.get(0).get("text").toString();
 
         } catch (Exception e) {
-            return "Lỗi khi gọi Gemini: " + e.getMessage();
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("503")) {
+                return "Xin lỗi bạn, hệ thống AI đang bận 😔 Vui lòng thử lại sau ít phút nhé!";
+            } else if (msg != null && msg.contains("429")) {
+                return "Xin lỗi bạn, mình đang tiếp nhận quá nhiều yêu cầu 🙏 Vui lòng thử lại sau nhé!";
+            } else if (msg != null && msg.contains("404")) {
+                return "Xin lỗi bạn, dịch vụ AI tạm thời không khả dụng 😢 Vui lòng thử lại sau!";
+            }
+            return "Xin lỗi bạn, đã có sự cố xảy ra 😔 Vui lòng thử lại sau ít phút nhé!";
         }
     }
 }
