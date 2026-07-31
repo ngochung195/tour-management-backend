@@ -1,5 +1,6 @@
 package com.example.tour_management.dto.promotion;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,7 +21,8 @@ public class PromotionRequest {
     @NotNull(message = "End date không được null")
     private LocalDateTime endDate;
 
-    private Boolean isActive;
+    @JsonProperty("isActive")
+    private Boolean active;
 
     public PromotionRequest() {}
 
@@ -57,10 +59,10 @@ public class PromotionRequest {
     }
 
     public Boolean getActive() {
-        return isActive;
+        return active;
     }
 
     public void setActive(Boolean active) {
-        isActive = active;
+        this.active = active;
     }
 }
